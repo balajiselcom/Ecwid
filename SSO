@@ -1,0 +1,44 @@
+Step 1: In you aspx page:
+<script src="//app.ecwid.com/script.js?7307017" type="text/javascript" charset="UTF-8"></script>
+<%= EcwidSSO.HashToSha1WithTimestamp() %>
+
+Step 2: Go to server side code, add the below class and call it on you page similar to line 3 above.
+
+Public Class EcwidSSO
+
+	Private Shared ReadOnly UnixEpoch As New DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+
+	Public Shared Function GetCurrentUnixTimestampSeconds() As Long
+			Return CLng((DateTime.UtcNow - UnixEpoch).TotalSeconds)
+	End Function
+
+Public Shared Function HashToSha1WithTimestamp() As String
+	Dim secretkey As String = "GxzC1j4RXepJxs" 'hardcoded - get it from https://my.ecwid.com/cp/CP.html#apps:view=legacy_api for SSO API
+	Dim message As String = System.Convert.ToBase64String(System.Text.Encoding .UTF8.GetBytes("{appId:'elcomCMS',userId:'3',profi le:{email:'user1@test.com.au'}}")) 
+	Dim unixTimestamp As Long = GetCurrentUnixTimestampSeconds() 'todo this has to be generated so timestamp is always unique, otherwise user will not be logged in
+	Dim hmac As String = HashToSha1(message + " " + unixTimestamp.ToString, secretkey)
+
+	Return String.Format(<script type="text/javascript"> var ecwid_sso_profile='{0}';</script>.ToString, message + " " + hmac + " " + unixTimestamp.ToString)
+End Function
+
+
+Private Shared Function HashToSha1(message As String, secretkey As String) As String
+	Dim encoding As New System.Text.ASCIIEncoding()
+	Dim keyByte As Byte() = encoding.GetBytes(secretkey)
+	Dim hmacsha1 As New Security.Cryptography.HMACSHA1(keyByte)
+	Dim messageBytes As Byte() = encoding.GetBytes(message)
+	Dim hashmessage As Byte() = hmacsha1.ComputeHash(messageBytes)
+	Return ByteToString(hashmessage)
+End Function
+
+Private Shared Function ByteToString(ByVal buff As Byte()) As String
+	Dim sbinary As String = ""
+
+	For i As Integer = 0 To buff.Length - 1
+	' hex format
+		sbinary += buff(i).ToString("X2")
+	Next
+	Return (sbinary)
+End Function
+
+End Class
